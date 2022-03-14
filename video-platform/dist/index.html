@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>SIGN - Verified Information</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-  
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <!--<link rel="stylesheet" href="/style.css">-->
@@ -164,7 +164,7 @@ function Main({head_cid}) {
     return html`<div class="video anim" style=${{"--delay": `.${idx+1}s`}}>
      <div class="video-time">${duration_min} min</div>
      <div class="video-wrapper">
-      <video muted=${true} preload="metadata" onMouseOver=${e=> e.target.play()} onMouseLeave=${e=> e.target.pause()} onClick=${e=> {window.location = `/video/${v.cid}`}}>
+      <video muted=${true} preload="metadata" onMouseOver=${e=> e.target.play()} onMouseLeave=${e=> e.target.pause()} onClick=${e=> {doNav(undefined, `/video/${v.cid}`)}}>
        <source src="${v.preview}" type="video/mp4" />
       </video>
       <div class="author-img__wrapper video-author">
@@ -401,7 +401,8 @@ async function sign(cid) {
 
       var {error, cid} = await response.json();
       if (error == "ok") {
-        window.location = `/video/${cid}`
+        //window.location = `/video/${cid}`
+        doNav(undefined, `/video/${cid}`)
         setGlobalState({signing: false, head_cid: cid})
         return cid
       } else {
@@ -685,7 +686,9 @@ export function setInitialState(state) {
 };
 
 export const doNav = async (e, next_page) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     if (globalState.path !== next_page) {
         window.history.pushState(undefined, undefined, next_page);
         setGlobalState({path: next_page});
