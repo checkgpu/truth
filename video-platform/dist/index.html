@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>SIGN - Verified Information</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/style.css">
+
+  <script src="https://unpkg.com/htm@2.2.1/dist/htm.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/deepmerge@4.2.2/dist/umd.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react@17.0.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@17.0.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl-fast.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+<div id="app" class="container"></div>
+
+<script type="module">
+const { createElement, useState, useEffect, useRef } = React;
+const html = htm.bind(createElement);
+var UPLOAD_FILE = null;
+var UPLOAD_FILE_URL = null;
+
+//TODO pool this + DHT to find peers
+const FARMURL = "https://135-181-213-135.zod.tv";
+const IPFSURL = "https://5-9-197-250.zod.tv";
+
+function Sidebar() {
+  var discover_active = globalState.path == "/" ? "is-active" : ""
+  discover_active = globalState.path.startsWith("/video") ? "is-active" : discover_active
+  var upload_active = globalState.path == "/upload" ? "is-active" : ""
+  return html`
+  <div class="sidebar">
+   <span class="logo">S</span>
+   <a class="logo-expand" href="#">SIGN</a>
+   <div class="side-wrapper">
+    <div class="side-title">MENU</div>
+    <div class="side-menu">
+     <a class="sidebar-link discover ${discover_active}" href="/" onClick=${e=> doNav(e, "/")}>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+       <path d="M9.135 20.773v-3.057c0-.78.637-1.414 1.423-1.414h2.875c.377 0 .74.15 1.006.414.267.265.417.625.417 1v3.057c-.002.325.126.637.356.867.23.23.544.36.87.36h1.962a3.46 3.46 0 002.443-1 3.41 3.41 0 001.013-2.422V9.867c0-.735-.328-1.431-.895-1.902l-6.671-5.29a3.097 3.097 0 00-3.949.072L3.467 7.965A2.474 2.474 0 002.5 9.867v8.702C2.5 20.464 4.047 22 5.956 22h1.916c.68 0 1.231-.544 1.236-1.218l.027-.009z" />
+      </svg>
+      Discover
+     </a>
+     <a class="sidebar-link" href="/" onClick=${e=> doNav(e, "/")}>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+       <path fill-rule="evenodd" clip-rule="evenodd" d="M15.164 6.083l.948.011c3.405 0 5.888 2.428 5.888 5.78v4.307c0 3.353-2.483 5.78-5.888 5.78A193.5 193.5 0 0112.01 22c-1.374 0-2.758-.01-4.122-.038-3.405 0-5.888-2.428-5.888-5.78v-4.307c0-3.353 2.483-5.78 5.898-5.78 1.286-.02 2.6-.04 3.935-.04v-.163c0-.665-.56-1.204-1.226-1.204h-.972c-1.109 0-2.012-.886-2.012-1.965 0-.395.334-.723.736-.723.412 0 .736.328.736.723 0 .289.246.52.54.52h.972c1.481.01 2.688 1.194 2.698 2.64v.183c.619 0 1.238.008 1.859.017zm-4.312 8.663h-1.03v1.02a.735.735 0 01-.737.723.728.728 0 01-.736-.722v-1.021H7.31a.728.728 0 01-.736-.723c0-.395.334-.722.736-.722h1.04v-1.012c0-.395.324-.723.736-.723.403 0 .736.328.736.723v1.012h1.03c.403 0 .737.327.737.722a.728.728 0 01-.736.723zm4.17-1.629h.099a.728.728 0 00.736-.722.735.735 0 00-.736-.723h-.098a.722.722 0 100 1.445zm1.679 3.315h.098a.728.728 0 00.736-.723.735.735 0 00-.736-.723H16.7a.722.722 0 100 1.445z" />
+      </svg>
+      Live
+     </a>
+     <a class="sidebar-link trending" href="/" onClick=${e=> doNav(e, "/")}>
+      <svg viewBox="0 0 488.455 488.455" fill="currentColor">
+       <path d="M287.396 216.317c23.845 23.845 23.845 62.505 0 86.35s-62.505 23.845-86.35 0-23.845-62.505 0-86.35 62.505-23.845 86.35 0"></path>
+       <path d="M427.397 91.581H385.21l-30.544-61.059H133.76l-30.515 61.089-42.127.075C27.533 91.746.193 119.115.164 152.715L0 396.86c0 33.675 27.384 61.074 61.059 61.074h366.338c33.675 0 61.059-27.384 61.059-61.059V152.639c-.001-33.674-27.385-61.058-61.059-61.058zM244.22 381.61c-67.335 0-122.118-54.783-122.118-122.118s54.783-122.118 122.118-122.118 122.118 54.783 122.118 122.118S311.555 381.61 244.22 381.61z"></path>
+      </svg>
+      Reels
+     </a>
+    </div>
+   </div>
+   <div class="side-wrapper">
+    <div class="side-title">CONFIG</div>
+    <div class="side-menu">
+     <a class="sidebar-link ${upload_active}" href="/upload" onClick=${e=> doNav(e, "/upload")}>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+       <path fill-rule="evenodd" clip-rule="evenodd" d="M12.1535 16.64L14.995 13.77C15.2822 13.47 15.2822 13 14.9851 12.71C14.698 12.42 14.2327 12.42 13.9455 12.71L12.3713 14.31V9.49C12.3713 9.07 12.0446 8.74 11.6386 8.74C11.2327 8.74 10.896 9.07 10.896 9.49V14.31L9.32178 12.71C9.03465 12.42 8.56931 12.42 8.28218 12.71C7.99505 13 7.99505 13.47 8.28218 13.77L11.1139 16.64C11.1832 16.71 11.2624 16.76 11.3515 16.8C11.4406 16.84 11.5396 16.86 11.6386 16.86C11.7376 16.86 11.8267 16.84 11.9158 16.8C12.005 16.76 12.0842 16.71 12.1535 16.64ZM19.3282 9.02561C19.5609 9.02292 19.8143 9.02 20.0446 9.02C20.302 9.02 20.5 9.22 20.5 9.47V17.51C20.5 19.99 18.5 22 16.0446 22H8.17327C5.58911 22 3.5 19.89 3.5 17.29V6.51C3.5 4.03 5.4901 2 7.96535 2H13.2525C13.5 2 13.7079 2.21 13.7079 2.46V5.68C13.7079 7.51 15.1931 9.01 17.0149 9.02C17.4333 9.02 17.8077 9.02318 18.1346 9.02595C18.3878 9.02809 18.6125 9.03 18.8069 9.03C18.9479 9.03 19.1306 9.02789 19.3282 9.02561ZM19.6045 7.5661C18.7916 7.5691 17.8322 7.5661 17.1421 7.5591C16.047 7.5591 15.145 6.6481 15.145 5.5421V2.9061C15.145 2.4751 15.6629 2.2611 15.9579 2.5721C16.7203 3.37199 17.8873 4.5978 18.8738 5.63395C19.2735 6.05379 19.6436 6.44249 19.945 6.7591C20.2342 7.0621 20.0223 7.5651 19.6045 7.5661Z" />
+      </svg>
+      Upload
+     </a>
+     <a class="sidebar-link" href="/" onClick=${e=> doNav(e, "/")}>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+       <path fill-rule="evenodd" clip-rule="evenodd" d="M16.158 8.233a4.207 4.207 0 01-4.209 4.234 4.207 4.207 0 01-4.21-4.234A4.206 4.206 0 0111.95 4a4.206 4.206 0 014.21 4.233zM11.95 20c-3.431 0-6.36-.544-6.36-2.72 0-2.177 2.91-2.74 6.36-2.74 3.431 0 6.361.544 6.361 2.72S15.399 20 11.949 20zm6.008-11.69a5.765 5.765 0 01-.984 3.24.158.158 0 00.107.245 3.4 3.4 0 00.483.046c1.643.044 3.118-1.02 3.525-2.621.604-2.379-1.168-4.514-3.425-4.514-.245 0-.48.026-.708.073-.031.007-.064.021-.082.05-.022.034-.006.08.016.11a5.807 5.807 0 011.068 3.37zm2.721 5.203c1.104.217 1.83.66 2.131 1.304a1.923 1.923 0 010 1.67c-.46.998-1.944 1.319-2.52 1.402-.12.018-.215-.086-.203-.206.295-2.767-2.048-4.08-2.654-4.381-.026-.014-.032-.034-.03-.047.003-.009.013-.023.033-.026 1.312-.024 2.722.156 3.243.284zM6.438 11.84c.164-.004.325-.019.483-.046a.158.158 0 00.106-.245 5.765 5.765 0 01-.984-3.24c0-1.25.39-2.416 1.068-3.372.022-.03.037-.075.016-.11-.017-.027-.051-.042-.082-.05a3.52 3.52 0 00-.71-.072c-2.255 0-4.027 2.135-3.423 4.514.407 1.6 1.882 2.664 3.525 2.621zm.159 1.414c.003.013-.003.033-.028.047-.607.302-2.95 1.614-2.656 4.38.013.121-.082.224-.201.207-.577-.083-2.06-.404-2.52-1.402a1.917 1.917 0 010-1.67c.3-.644 1.026-1.087 2.13-1.305.522-.127 1.93-.307 3.244-.283.02.003.03.017.03.026z" />
+      </svg>
+      Settings
+     </a>
+    </div>
+   </div>
+  </div>
+`
+}
+
+function Header() {
+  return html`
+  <div class="header">
+   <div class="search-bar">
+    <input type="text" placeholder="Search"></input>
+   </div>
+   <div class="user-settings">
+    <img  class="user-img" src="https://images.unsplash.com/photo-1587918842454-870dbd18261a?ixlib=rb-1.2.1&ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&auto=format&fit=crop&w=943&q=80" alt=""></img>
+    <div class="user-name" >${globalState.pub_b58}</div>
+    <svg viewBox="0 0 492 492" fill="currentColor"  style=${{display: "none"}}>
+     <path d="M484.13 124.99l-16.11-16.23a26.72 26.72 0 00-19.04-7.86c-7.2 0-13.96 2.79-19.03 7.86L246.1 292.6 62.06 108.55c-5.07-5.06-11.82-7.85-19.03-7.85s-13.97 2.79-19.04 7.85L7.87 124.68a26.94 26.94 0 000 38.06l219.14 219.93c5.06 5.06 11.81 8.63 19.08 8.63h.09c7.2 0 13.96-3.57 19.02-8.63l218.93-219.33A27.18 27.18 0 00492 144.1c0-7.2-2.8-14.06-7.87-19.12z"></path>
+    </svg>
+    <div class="notify">
+     <div class="notification" style=${{display: "none"}}></div>
+     <svg viewBox="0 0 24 24" fill="currentColor">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M18.707 8.796c0 1.256.332 1.997 1.063 2.85.553.628.73 1.435.73 2.31 0 .874-.287 1.704-.863 2.378a4.537 4.537 0 01-2.9 1.413c-1.571.134-3.143.247-4.736.247-1.595 0-3.166-.068-4.737-.247a4.532 4.532 0 01-2.9-1.413 3.616 3.616 0 01-.864-2.378c0-.875.178-1.682.73-2.31.754-.854 1.064-1.594 1.064-2.85V8.37c0-1.682.42-2.781 1.283-3.858C7.861 2.942 9.919 2 11.956 2h.09c2.08 0 4.204.987 5.466 2.625.82 1.054 1.195 2.108 1.195 3.745v.426zM9.074 20.061c0-.504.462-.734.89-.833.5-.106 3.545-.106 4.045 0 .428.099.89.33.89.833-.025.48-.306.904-.695 1.174a3.635 3.635 0 01-1.713.731 3.795 3.795 0 01-1.008 0 3.618 3.618 0 01-1.714-.732c-.39-.269-.67-.694-.695-1.173z" />
+     </svg>
+    </div>
+   </div>
+  </div>
+  `
+}
+
+const PREVIEW_CACHE = new Map();
+async function dig_video(link_cid, depth, max_depth) {
+  if (depth >= max_depth)
+    return;
+  var link = localStorage.getItem(`link:${link_cid}`);
+  if (!link) {
+    var response = await fetch(`${IPFSURL}/ipfs/${link_cid}`);
+    link = await response.json()
+    localStorage.setItem(`link:${link_cid}`, JSON.stringify(link));
+  } else {
+    link = JSON.parse(link)
+  }
+  var video_cid = link.cid
+  var metadata = localStorage.getItem(`metadata:${video_cid}`);
+  if (!metadata) {
+    response = await fetch(`${IPFSURL}/ipfs/${video_cid}/metadata`);
+    metadata = await response.json()
+    localStorage.setItem(`metadata:${video_cid}`, JSON.stringify(metadata));
+  } else {
+    metadata = JSON.parse(metadata)
+  }
+
+  var preview = PREVIEW_CACHE.get(video_cid)
+  if (!preview) {
+    preview = await fetch(`${IPFSURL}/ipfs/${video_cid}/preview.mp4`);
+    preview = await preview.blob();
+    preview = await readFileAsync(preview);
+    PREVIEW_CACHE.set(video_cid, preview)
+  }
+
+  var videos = globalState.videos
+  videos[depth] = {cid: link_cid, link: link, metadata: metadata, preview: preview}
+  setGlobalState({videos: videos})
+
+  if (link.prev == null)
+    return
+  dig_video(link.prev, depth+1, max_depth)
+}
+
+function Main({head_cid}) {
+  useEffect(
+    () => {
+      if (head_cid) {
+        dig_video(head_cid, 0, 12)
+      }
+      return () => {
+      };
+    },
+    [head_cid]
+  );
+
+  const videoEl = Object.values(globalState.videos).map((v,idx)=> {
+    var duration_min = Math.ceil((v.metadata.duration / 1000000) / 60)
+    return html`<div class="video anim" style=${{"--delay": `.${idx+1}s`}}>
+     <div class="video-time">${duration_min} min</div>
+     <div class="video-wrapper">
+      <video muted=${true} preload="metadata" onMouseOver=${e=> e.target.play()} onMouseLeave=${e=> e.target.pause()} onClick=${e=> {window.location = `/video/${v.cid}`}}>
+       <source src="${v.preview}" type="video/mp4" />
+      </video>
+      <div class="author-img__wrapper video-author">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+        <path d="M20 6L9 17l-5-5" />
+       </svg>
+       <img class="author-img" src="https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+      </div>
+     </div>
+     <div class="video-by">Anonymous</div>
+     <div class="video-name">${v.metadata.title}</div>
+     <div class="video-view">54K views<span class="seperate video-seperate"></span>Some time ago</div>
+    </div>`
+  })
+
+  return html`
+  <div class="main-container">
+   <div class="main-header anim" style=${{"--delay": "0s"}}>Discover</div>
+   <div style=${{display: "none"}} class="main-blogs">
+    <div class="main-blog anim" style=${{"--delay": ".1s"}}>
+     <div class="main-blog__title">How to do Basic Jumping and how to landing safely</div>
+     <div class="main-blog__author">
+      <div class="author-img__wrapper">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+        <path d="M20 6L9 17l-5-5" />
+       </svg>
+       <img class="author-img" src="https://images.unsplash.com/photo-1560941001-d4b52ad00ecc?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80"></img>
+      </div>
+      <div class="author-detail">
+       <div class="author-name">Thomas Hope</div>
+       <div class="author-info">53K views <span class="seperate"></span>2 weeks ago</div>
+      </div>
+     </div>
+     <div class="main-blog__time">7 min</div>
+    </div>
+    <div class="main-blog anim" style=${{"--delay": ".2s"}}>
+     <div class="main-blog__title">Skateboard Tips You need to know</div>
+     <div class="main-blog__author tips">
+      <div class="main-blog__time">7 min</div>
+      <div class="author-img__wrapper">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+        <path d="M20 6L9 17l-5-5" />
+       </svg>
+       <img class="author-img" src="https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?ixid=MXwxMjA3fDB8MHxzZWFyY2h8Mzl8fG1lbnxlbnwwfHwwfA%3D%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"></img>
+      </div>
+      <div class="author-detail">
+       <div class="author-name">Tony Andrew</div>
+       <div class="author-info">53K views <span></span>2 weeks ago</div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="small-header anim" style=${{"--delay": ".3s"}}>Most Watched</div>
+   <div class="videos">
+    ${videoEl}
+   </div>
+   <div class="stream-area">
+    <div class="video-stream">
+     <video id="my_video_1" class="video-js vjs-default-skin anim" width="640px" height="267px" controls preload="none" poster='https://images.unsplash.com/photo-1476801071117-fbc157ae3f01?ixlib=rb-1.2.1&ixid=MXwxMjA3fDB8MHxwaG90by1yZWxhdGVkfDh8fHxlbnwwfHx8&w=1000&q=80' data-setup='{ "aspectRatio":"940:620", "playbackRates": [1, 1.5, 2] }'>
+      <source src="https://player.vimeo.com/external/390402719.sd.mp4?s=20cfdb066c4253047562b65bd4e411b86a004bc5&profile_id=139&oauth2_token_id=57447761" type='video/mp4' />
+      <source src="https://player.vimeo.com/external/390402719.sd.mp4?s=20cfdb066c4253047562b65bd4e411b86a004bc5&profile_id=139&oauth2_token_id=57447761" type='video/webm' />
+     </video>
+     <div class="video-detail">
+      <div class="video-content">
+       <div class="video-p-wrapper anim" style=${{"--delay": ".1s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div class="video-p-detail">
+         <div class="video-p-name">Andy William</div>
+         <div class="video-p-sub">1,980,893 subscribers</div>
+        </div>
+        <div class="button-wrapper">
+         <button class="like">
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+           <path d="M21.435 2.582a1.933 1.933 0 00-1.93-.503L3.408 6.759a1.92 1.92 0 00-1.384 1.522c-.142.75.355 1.704 1.003 2.102l5.033 3.094a1.304 1.304 0 001.61-.194l5.763-5.799a.734.734 0 011.06 0c.29.292.29.765 0 1.067l-5.773 5.8c-.428.43-.508 1.1-.193 1.62l3.075 5.083c.36.604.98.946 1.66.946.08 0 .17 0 .251-.01.78-.1 1.4-.634 1.63-1.39l4.773-16.075c.21-.685.02-1.43-.48-1.943z" />
+          </svg>
+          Share
+         </button>
+         <button class="like red">
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+           <path fill-rule="evenodd" clip-rule="evenodd" d="M15.85 2.5c.63 0 1.26.09 1.86.29 3.69 1.2 5.02 5.25 3.91 8.79a12.728 12.728 0 01-3.01 4.81 38.456 38.456 0 01-6.33 4.96l-.25.15-.26-.16a38.093 38.093 0 01-6.37-4.96 12.933 12.933 0 01-3.01-4.8c-1.13-3.54.2-7.59 3.93-8.81.29-.1.59-.17.89-.21h.12c.28-.04.56-.06.84-.06h.11c.63.02 1.24.13 1.83.33h.06c.04.02.07.04.09.06.22.07.43.15.63.26l.38.17c.092.05.195.125.284.19.056.04.107.077.146.1l.05.03c.085.05.175.102.25.16a6.263 6.263 0 013.85-1.3zm2.66 7.2c.41-.01.76-.34.79-.76v-.12a3.3 3.3 0 00-2.11-3.16.8.8 0 00-1.01.5c-.14.42.08.88.5 1.03.64.24 1.07.87 1.07 1.57v.03a.86.86 0 00.19.62c.14.17.35.27.57.29z" />
+          </svg>
+          Liked
+         </button>
+        </div>
+       </div>
+       <div class="video-p-title anim" style=${{"--delay": ".2s"}}>Basic how to ride your Skateboard</div>
+       <div class="video-p-subtitle anim" style=${{"--delay": ".3s"}}>Lorem ipsum dolor sit amet consectetur adipisicing elit. Repellendus illum tempora consequuntur. Lorem ipsum dolor sit amet consectetur adipisicing elit. Debitis earum velit accusantium maiores qui sit quas, laborum voluptatibus vero quidem tempore facilis voluptate tempora deserunt! </div>
+       <div class="video-p-subtitle anim" style=${{"--delay": ".4s"}}>Lorem ipsum dolor sit amet consectetur adipisicing elit. Temporibus laborum qui dolorum fugiat eius accusantium repellendus illum tempora consequuntur. Lorem ipsum dolor, sit amet consectetur adipisicing elit.</div>
+      </div>
+     </div>
+    </div>
+    <div class="chat-stream">
+     <div class="chat">
+      <div class="chat-header anim">Live Chat<span><svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+         <path fill-rule="evenodd" clip-rule="evenodd" d="M14.212 7.762c0 2.644-2.163 4.763-4.863 4.763-2.698 0-4.863-2.119-4.863-4.763C4.486 5.12 6.651 3 9.35 3c2.7 0 4.863 2.119 4.863 4.762zM2 17.917c0-2.447 3.386-3.06 7.35-3.06 3.985 0 7.349.634 7.349 3.083 0 2.448-3.386 3.06-7.35 3.06C5.364 21 2 20.367 2 17.917zM16.173 7.85a6.368 6.368 0 01-1.137 3.646c-.075.107-.008.252.123.275.182.03.369.048.56.052 1.898.048 3.601-1.148 4.072-2.95.697-2.675-1.35-5.077-3.957-5.077a4.16 4.16 0 00-.818.082c-.036.008-.075.025-.095.055-.025.04-.007.09.019.124a6.414 6.414 0 011.233 3.793zm3.144 5.853c1.276.245 2.115.742 2.462 1.467a2.107 2.107 0 010 1.878c-.531 1.123-2.245 1.485-2.912 1.578a.207.207 0 01-.234-.232c.34-3.113-2.367-4.588-3.067-4.927-.03-.017-.036-.04-.034-.055.002-.01.015-.025.038-.028 1.515-.028 3.145.176 3.747.32z" />
+        </svg>
+        15,988 people
+       </span>
+      </div>
+      <div class="message-container">
+       <div class="message anim" style=${{"--delay": ".1s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.unsplash.com/photo-1560941001-d4b52ad00ecc?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=1650&q=80"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name"> Wijaya Adabi</div>
+         <div class="msg__content video-p-sub"> Lorem ipsum clor sit, ame conse quae debitis</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".2s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/2889942/pexels-photo-2889942.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline"> Johny Wise</div>
+         <div class="msg__content video-p-sub"> Suscipit eos atque voluptates labore</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".3s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.unsplash.com/photo-1496345875659-11f7dd282d1d?ixid=MXwxMjA3fDB8MHxzZWFyY2h8Mzl8fG1lbnxlbnwwfHwwfA%3D%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline"> Budi Hakim</div>
+         <div class="msg__content video-p-sub">Dicta quidem sunt adipisci</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".4s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/1870163/pexels-photo-1870163.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name"> Thomas Hope</div>
+         <div class="msg__content video-p-sub"> recusandae doloremque aperiam alias molestias</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".5s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name"> Gerard Will</div>
+         <div class="msg__content video-p-sub">Dicta quidem sunt adipisci</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".6s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/2889942/pexels-photo-2889942.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline">Johny Wise</div>
+         <div class="msg__content video-p-sub"> recusandae doloremque aperiam alias molestias</div>
+        </div>
+       </div>
+      </div>
+      <div class="chat-footer anim" style=${{"--delay": ".1s"}}>
+       <input type="text" placeholder="Write your message"></input>
+      </div>
+     </div>
+     <div class="chat-vid__container">
+      <div class="chat-vid__title anim" style=${{"--delay": ".3s"}}>Related Videos</div>
+      <div class="chat-vid anim" style=${{"--delay": ".4s"}}>
+       <div class="chat-vid__wrapper">
+        <img class="chat-vid__img" src="https://cdn.nohat.cc/thumb/f/720/3b55eddcfffa4e87897d.jpg"></img>
+        <div class="chat-vid__content">
+         <div class="chat-vid__name">Prepare for your first skateboard jump</div>
+         <div class="chat-vid__by">Jordan Wise</div>
+         <div class="chat-vid__info">125.908 views <span class="seperate"></span>2 days ago</div>
+        </div>
+       </div>
+      </div>
+      <div class="chat-vid anim" style=${{"--delay": ".5s"}}>
+       <div class="chat-vid__wrapper">
+        <img class="chat-vid__img" src="https://iamaround.it/wp-content/uploads/2015/02/pexels-photo-4663818.jpeg"></img>
+        <div class="chat-vid__content">
+         <div class="chat-vid__name">Prepare for your first skateboard jump</div>
+         <div class="chat-vid__by">Jordan Wise</div>
+         <div class="chat-vid__info">125.908 views <span class="seperate"></span>2 days ago</div>
+        </div>
+       </div>
+      </div>
+      <div class="chat-vid__button anim" style=${{"--delay": ".5s"}}>See All related videos (32)</div>
+     </div>
+    </div>
+   </div>
+  </div>
+  `
+}
+
+//UPLOAD_FILE
+async function upload() {
+  var title = globalState.upload.title
+  var description = globalState.upload.description
+  
+  if (globalState.upload.uploading)
+    return;
+  setGlobalState({upload: {uploading: true}})
+
+  try {
+    var response = await fetch(`${FARMURL}/upload_video_ipfs`, {
+      method: 'POST',
+      body: UPLOAD_FILE,
+      headers: {
+        'Accept': 'application/json',
+        "Extra": JSON.stringify({title: title, description: description})
+      }
+    })
+    const reply = await response.json();
+    const {error, cid} = reply
+    if (error != "ok") {
+      console.log(reply)
+      alert(error)
+      return
+    }
+    globalThis.location = `/video/${cid}`
+    setGlobalState({upload: {video_added: false, uploading: false, cid: cid}})
+  } catch (err) {
+    console.log(err)
+    alert("uploading error written to console.log")
+    setGlobalState({upload: {uploading: false}})
+  }
+}
+
+function readFileAsync(file) {
+  return new Promise((resolve, reject) => {
+    let reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  })
+}
+
+async function add_file(e) {
+  UPLOAD_FILE = e.target.files[0];
+  UPLOAD_FILE_URL = await readFileAsync(UPLOAD_FILE);
+  setGlobalState({upload: {video_added: true}})
+}
+
+function Upload() {
+  const video_added = globalState.upload.video_added
+  const uploading = globalState.upload.uploading
+  const cid = globalState.upload.cid
+
+  return html`
+  <div class="main-container show">
+   <div class="stream-area">
+    <div class="video-stream" style=${{width: "93%"}}>
+      ${!globalState.upload.video_added ? html`
+         <button class="like" onClick=${e=> document.getElementById('getFile').click()}>
+          <svg viewBox="0 0 24 24" fill="currentColor">
+           <path fill-rule="evenodd" clip-rule="evenodd" d="M12.1535 16.64L14.995 13.77C15.2822 13.47 15.2822 13 14.9851 12.71C14.698 12.42 14.2327 12.42 13.9455 12.71L12.3713 14.31V9.49C12.3713 9.07 12.0446 8.74 11.6386 8.74C11.2327 8.74 10.896 9.07 10.896 9.49V14.31L9.32178 12.71C9.03465 12.42 8.56931 12.42 8.28218 12.71C7.99505 13 7.99505 13.47 8.28218 13.77L11.1139 16.64C11.1832 16.71 11.2624 16.76 11.3515 16.8C11.4406 16.84 11.5396 16.86 11.6386 16.86C11.7376 16.86 11.8267 16.84 11.9158 16.8C12.005 16.76 12.0842 16.71 12.1535 16.64ZM19.3282 9.02561C19.5609 9.02292 19.8143 9.02 20.0446 9.02C20.302 9.02 20.5 9.22 20.5 9.47V17.51C20.5 19.99 18.5 22 16.0446 22H8.17327C5.58911 22 3.5 19.89 3.5 17.29V6.51C3.5 4.03 5.4901 2 7.96535 2H13.2525C13.5 2 13.7079 2.21 13.7079 2.46V5.68C13.7079 7.51 15.1931 9.01 17.0149 9.02C17.4333 9.02 17.8077 9.02318 18.1346 9.02595C18.3878 9.02809 18.6125 9.03 18.8069 9.03C18.9479 9.03 19.1306 9.02789 19.3282 9.02561ZM19.6045 7.5661C18.7916 7.5691 17.8322 7.5661 17.1421 7.5591C16.047 7.5591 15.145 6.6481 15.145 5.5421V2.9061C15.145 2.4751 15.6629 2.2611 15.9579 2.5721C16.7203 3.37199 17.8873 4.5978 18.8738 5.63395C19.2735 6.05379 19.6436 6.44249 19.945 6.7591C20.2342 7.0621 20.0223 7.5651 19.6045 7.5661Z" />
+          </svg>
+          Select Video to Upload (.mp4)
+         </button>
+         <input type="file" id="getFile" accept="video/mp4,video/x-m4v" style=${{display: "none"}} onChange=${e=> add_file(e)}></input>
+        ` : html`
+         <video class="" controls preload="metadata" style=${{borderRadius: "20px 20px 20px 20px"}}>
+          <source src="${UPLOAD_FILE_URL}" type='video/mp4' />
+         </video>`
+      }
+
+     <div class="video-detail">
+      <div class="video-content">
+       <div class="video-p-wrapper anim" style=${{"--delay": ".1s"}}>
+        <div style=${{display: "none"}} class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div style=${{display: "none"}} class="video-p-detail">
+         <div class="video-p-name">${globalState.pub_b58}</div>
+         <div class="video-p-sub">Anonymous</div>
+        </div>
+        ${
+          video_added ? html`<div class="button-wrapper">
+         <button class="like" onClick=${e=> upload()} disabled=${uploading}>
+          ${
+            uploading ? html`<i class="fa fa-circle-o-notch fa-spin" style=${{fontSize: "24px"}}></i>` : html`<svg viewBox="0 0 512 512" fill="currentColor">
+             <path d="M272 512h-32c-26 0-47.2-21.1-47.2-47.1V454c-11-3.5-21.8-8-32.1-13.3l-7.7 7.7a47.1 47.1 0 01-66.7 0l-22.7-22.7a47.1 47.1 0 010-66.7l7.7-7.7c-5.3-10.3-9.8-21-13.3-32.1H47.1c-26 0-47.1-21.1-47.1-47.1v-32.2c0-26 21.1-47.1 47.1-47.1H58c3.5-11 8-21.8 13.3-32.1l-7.7-7.7a47.1 47.1 0 010-66.7l22.7-22.7a47.1 47.1 0 0166.7 0l7.7 7.7c10.3-5.3 21-9.8 32.1-13.3V47.1c0-26 21.1-47.1 47.1-47.1h32.2c26 0 47.1 21.1 47.1 47.1V58c11 3.5 21.8 8 32.1 13.3l7.7-7.7a47.1 47.1 0 0166.7 0l22.7 22.7a47.1 47.1 0 010 66.7l-7.7 7.7c5.3 10.3 9.8 21 13.3 32.1h10.9c26 0 47.1 21.1 47.1 47.1v32.2c0 26-21.1 47.1-47.1 47.1H454c-3.5 11-8 21.8-13.3 32.1l7.7 7.7a47.1 47.1 0 010 66.7l-22.7 22.7a47.1 47.1 0 01-66.7 0l-7.7-7.7c-10.3 5.3-21 9.8-32.1 13.3v10.9c0 26-21.1 47.1-47.1 47.1zM165.8 409.2a176.8 176.8 0 0045.8 19 15 15 0 0111.3 14.5V465c0 9.4 7.7 17.1 17.1 17.1h32.2c9.4 0 17.1-7.7 17.1-17.1v-22.2a15 15 0 0111.3-14.5c16-4.2 31.5-10.6 45.8-19a15 15 0 0118.2 2.3l15.7 15.7a17.1 17.1 0 0024.2 0l22.8-22.8a17.1 17.1 0 000-24.2l-15.7-15.7a15 15 0 01-2.3-18.2 176.8 176.8 0 0019-45.8 15 15 0 0114.5-11.3H465c9.4 0 17.1-7.7 17.1-17.1v-32.2c0-9.4-7.7-17.1-17.1-17.1h-22.2a15 15 0 01-14.5-11.2c-4.2-16.1-10.6-31.6-19-45.9a15 15 0 012.3-18.2l15.7-15.7a17.1 17.1 0 000-24.2l-22.8-22.8a17.1 17.1 0 00-24.2 0l-15.7 15.7a15 15 0 01-18.2 2.3 176.8 176.8 0 00-45.8-19 15 15 0 01-11.3-14.5V47c0-9.4-7.7-17.1-17.1-17.1h-32.2c-9.4 0-17.1 7.7-17.1 17.1v22.2a15 15 0 01-11.3 14.5c-16 4.2-31.5 10.6-45.8 19a15 15 0 01-18.2-2.3l-15.7-15.7a17.1 17.1 0 00-24.2 0l-22.8 22.8a17.1 17.1 0 000 24.2l15.7 15.7a15 15 0 012.3 18.2 176.8 176.8 0 00-19 45.8 15 15 0 01-14.5 11.3H47c-9.4 0-17.1 7.7-17.1 17.1v32.2c0 9.4 7.7 17.1 17.1 17.1h22.2a15 15 0 0114.5 11.3c4.2 16 10.6 31.5 19 45.8a15 15 0 01-2.3 18.2l-15.7 15.7a17.1 17.1 0 000 24.2l22.8 22.8a17.1 17.1 0 0024.2 0l15.7-15.7a15 15 0 0118.2-2.3z"></path>
+             <path d="M256 367.4c-61.4 0-111.4-50-111.4-111.4s50-111.4 111.4-111.4 111.4 50 111.4 111.4-50 111.4-111.4 111.4zm0-192.8a81.5 81.5 0 000 162.8 81.5 81.5 0 000-162.8z"></path>
+            </svg>`
+          }
+          Upload + Transcode
+         </button>
+        </div>` : null
+        }
+       </div>
+       <div class="video-p-subtitle anim" style=${{display: "none", "--delay": ".2s"}}>
+         Preview Offset (8 second)
+         <div class="search-bar">
+          <input type="text" placeholder="00:03:01" style=${{backgroundImage: "none"}}></input>
+         </div>
+       </div>
+       <div class="video-p-subtitle anim" style=${{"--delay": ".2s"}}>
+         Title
+         <div class="search-bar">
+          <input type="text" placeholder="A Complete Dota 2 Guide.." style=${{backgroundImage: "none"}} onBlur=${e=> setGlobalState({upload: {title: e.target.value}})}></input>
+         </div>
+       </div>
+       <div class="video-p-subtitle anim" style=${{"--delay": ".3s"}}>
+         Description
+         <div class="search-bar">
+          <textarea type="text" placeholder="This is a complete beginner guide for Dota2 2020. Whether you're from League.." style=${{height: "160px"}} onBlur=${e=> setGlobalState({upload: {description: e.target.value}})}></textarea>
+         </div>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  `
+}
+
+async function IPFSView(cid) {
+  try {
+    var response = await fetch(`${IPFSURL}/ipfs/${cid}`);
+    var contentType = response.headers.get("Content-Type")
+    if (contentType == "text/html") {
+      response.text();
+      var metadata = await fetch(`${IPFSURL}/ipfs/${cid}/metadata`);
+      metadata = await metadata.json()
+      setGlobalState({view: {type: "video", metadata: metadata}})
+    }
+    if (contentType == "application/json") {
+      var link = await response.json()
+      if (link.type == "link") {
+        var metadata = await fetch(`${IPFSURL}/ipfs/${link.cid}/metadata`);
+        metadata = await metadata.json()
+        //TODO verify signature
+        setGlobalState({view: {type: "link", video_cid: link.cid, metadata: metadata, pubkey_ed25519: link.pubkey_ed25519}})
+      }
+    }
+  } catch (err) {
+    console.log(err)
+    return;
+  }
+}
+
+async function sign(cid) {
+  //var seckey = prompt("Enter your ed25519 private key")
+  //if (seckey) {
+    setGlobalState({signing: true})
+
+    try {
+      var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(globalState.sec_b58))
+
+      var pubkey_b58 = to_b58(keyPair_ed.publicKey)
+
+      var message = (new TextEncoder()).encode(cid)
+      var signature = nacl.sign.detached(message, keyPair_ed.secretKey)
+      var signature_b58 = to_b58(signature)
+
+      var response = await fetch(`${FARMURL}/sign_video_ipfs`, {
+        method: 'POST',
+        body: JSON.stringify({pubkey: pubkey_b58, signature: signature_b58, cid: cid}),
+        headers: {
+          'Accept': 'application/json',
+        }
+      })
+
+      var {error, cid} = await response.json();
+      if (error == "ok") {
+        window.location = `/video/${cid}`
+        setGlobalState({signing: false, head_cid: cid})
+        return cid
+      } else {
+        setGlobalState({signing: false})
+        return null
+      }
+    } catch (err) {
+      console.log(err)
+      setGlobalState({signing: false})
+      return null
+    }
+  //}
+}
+
+function View({cid}) {
+  const videoEl = useRef(null);
+
+  useEffect(
+    () => {
+      async function fetchIPFSView() {
+        await IPFSView(cid)
+        var videoCid = cid;
+        if (globalState.view.type == "link")
+          videoCid = globalState.view.video_cid;
+        var videoSrc = `${IPFSURL}/ipfs/${videoCid}/pl.m3u8`
+        if (videoEl.current.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = videoSrc;
+        } else {
+          var hls = new Hls();
+          hls.loadSource(videoSrc);
+          hls.attachMedia(videoEl.current);
+        }
+      }
+      fetchIPFSView()
+      return () => {
+      };
+    },
+    [cid]
+  );
+
+  var type = globalState.view.type;
+  var title = globalState.view.metadata && globalState.view.metadata.title
+  var description = globalState.view.metadata && globalState.view.metadata.description
+  var pubkey_ed25519 = type == "link" && globalState.view.metadata && globalState.view.pubkey_ed25519
+  var signing = globalState.signing;
+  var show_signer = !pubkey_ed25519 ? "none" : ""
+  var show_make_public = pubkey_ed25519 ? "none" : ""
+  
+  return html`
+  <div class="main-container show">
+   <div class="stream-area">
+    <div class="video-stream" style=${{width: "65%"}}>
+
+     <video ref=${videoEl} class="" controls preload="metadata" style=${{borderRadius: "20px 20px 20px 20px"}}></video>
+
+     <div class="video-detail">
+      <div class="video-content">
+       <div class="video-p-wrapper anim" style=${{"--delay": ".1s"}}>
+        <div style=${{display: show_signer}} class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5" />
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/1680172/pexels-photo-1680172.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=500"></img>
+        </div>
+        <div style=${{display: show_signer}} class="video-p-detail">
+         <div class="video-p-name">${pubkey_ed25519}</div>
+         <div class="video-p-sub">Anonymous</div>
+        </div>
+        <div class="button-wrapper">
+         <button style=${{display: show_make_public}} class="like" onClick=${e=> window.open(`${IPFSURL}/ipfs/${cid}`, "_blank")}>
+          <svg viewBox="0 0 512 512" fill="currentColor">
+           <path d="M0 331v112.295a14.996 14.996 0 007.559 13.023L106 512V391L0 331zM136 391v121l105-60V331zM271 331v121l105 60V391zM406 391v121l98.441-55.682A14.995 14.995 0 00512 443.296V331l-106 60zM391 241l-115.754 57.876L391 365.026l116.754-66.15zM262.709 1.583a15.006 15.006 0 00-13.418 0L140.246 57.876 256 124.026l115.754-66.151L262.709 1.583zM136 90v124.955l105 52.5V150zM121 241L4.246 298.876 121 365.026l115.754-66.15zM271 150v117.455l105-52.5V90z"></path>
+          </svg>
+          View on IPFS
+         </button>
+         <button style=${{display: show_make_public}} class="like red" onClick=${e=> sign(cid)} disabled=${signing}>
+          ${
+            signing ? html`<i class="fa fa-circle-o-notch fa-spin" style=${{fontSize: "24px"}}></i>` : html`<svg viewBox="0 0 512 512" fill="currentColor">
+             <path d="M499.377 46.402c-8.014-8.006-18.662-12.485-29.985-12.613a41.13 41.13 0 00-.496-.003c-11.142 0-21.698 4.229-29.771 11.945L198.872 275.458c25.716 6.555 47.683 23.057 62.044 47.196a113.544 113.544 0 0110.453 23.179L500.06 106.661C507.759 98.604 512 88.031 512 76.89c0-11.507-4.478-22.33-12.623-30.488zM176.588 302.344a86.035 86.035 0 00-3.626-.076c-20.273 0-40.381 7.05-56.784 18.851-19.772 14.225-27.656 34.656-42.174 53.27C55.8 397.728 27.795 409.14 0 416.923c16.187 42.781 76.32 60.297 115.752 61.24 1.416.034 2.839.051 4.273.051 44.646 0 97.233-16.594 118.755-60.522 23.628-48.224-5.496-112.975-62.192-115.348z"></path>
+            </svg>`
+          }
+          Sign + Make Public
+         </button>
+        </div>
+       </div>
+       <div class="video-p-title anim" style=${{"--delay": ".2s"}}>${title}</div>
+       <div class="video-p-subtitle anim" style=${{"--delay": ".3s"}}>${description}</div>
+      </div>
+     </div>
+    </div>
+
+    <div class="chat-stream">
+     <div class="chat">
+      <div class="chat-header anim">Comments<span><svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+         <path fill-rule="evenodd" clip-rule="evenodd" d="M14.212 7.762c0 2.644-2.163 4.763-4.863 4.763-2.698 0-4.863-2.119-4.863-4.763C4.486 5.12 6.651 3 9.35 3c2.7 0 4.863 2.119 4.863 4.762zM2 17.917c0-2.447 3.386-3.06 7.35-3.06 3.985 0 7.349.634 7.349 3.083 0 2.448-3.386 3.06-7.35 3.06C5.364 21 2 20.367 2 17.917zM16.173 7.85a6.368 6.368 0 01-1.137 3.646c-.075.107-.008.252.123.275.182.03.369.048.56.052 1.898.048 3.601-1.148 4.072-2.95.697-2.675-1.35-5.077-3.957-5.077a4.16 4.16 0 00-.818.082c-.036.008-.075.025-.095.055-.025.04-.007.09.019.124a6.414 6.414 0 011.233 3.793zm3.144 5.853c1.276.245 2.115.742 2.462 1.467a2.107 2.107 0 010 1.878c-.531 1.123-2.245 1.485-2.912 1.578a.207.207 0 01-.234-.232c.34-3.113-2.367-4.588-3.067-4.927-.03-.017-.036-.04-.034-.055.002-.01.015-.025.038-.028 1.515-.028 3.145.176 3.747.32z"></path>
+        </svg>
+        1,188 people
+       </span>
+      </div>
+      <div class="message-container">
+       <div class="message anim" style=${{"--delay": ".1s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check" style=${{display: "none"}}>
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://images.unsplash.com/photo-1560941001-d4b52ad00ecc?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&amp;ixlib=rb-1.2.1&amp;auto=format&amp;fit=crop&amp;w=1650&amp;q=80"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline">Anonymous</div>
+         <div class="msg__content video-p-sub">What exactly happened at 25s?</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".2s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://images.pexels.com/photos/2889942/pexels-photo-2889942.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=2&amp;w=500"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name">TKT News</div>
+         <div class="msg__content video-p-sub">That is our field reporter out in the field over there, Takitaki.</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".3s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://pbs.twimg.com/profile_images/1215070700026855425/7edvU72D_400x400.jpg"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name">Volodymyr Zelensky</div>
+         <div class="msg__content video-p-sub">🇺🇦</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".4s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://www.whitehouse.gov/wp-content/uploads/2021/04/P20210303AS-1901-cropped.jpg"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline">Joe Biden</div>
+         <div class="msg__content video-p-sub">watching this video will take me passed my bedtime, see you tomorrow. </div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".5s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://www.whitehouse.gov/wp-content/uploads/2021/04/V20210305LJ-0043-cropped.jpg?resize=768,576"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name">Kamala Harris</div>
+         <div class="msg__content video-p-sub">Hahahahahaha haha ha, lol, hahaha</div>
+        </div>
+       </div>
+       <div class="message anim" style=${{"--delay": ".6s"}}>
+        <div class="author-img__wrapper video-author video-p">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check">
+          <path d="M20 6L9 17l-5-5"></path>
+         </svg>
+         <img class="author-img" src="https://inkstickmedia.com/wp-content/uploads/2022/03/St-Javelin-845x1024.jpeg"></img>
+        </div>
+        <div class="msg-wrapper">
+         <div class="msg__name video-p-name offline">Saint Javelin</div>
+         <div class="msg__content video-p-sub">💥</div>
+        </div>
+       </div>
+      </div>
+      <div class="chat-footer anim" style=${{"--delay": ".1s"}}>
+       <input type="text" placeholder="Write your comment"></input>
+      </div>
+     </div>
+    </div>
+
+   </div>
+  </div>
+  `
+}
+
+function Index() {
+  const [s, hook_setGlobalState0] = useState(buildInitialState());
+  wireUpGlobalState(s, hook_setGlobalState0);
+
+  var page = html`<${Main} head_cid=${s.head_cid}/>`
+  if (s.path == "/upload")
+    page = html`<${Upload} />`
+  if (s.path.startsWith("/video/")) {
+    var [a,b] = s.path.split("?")
+    var cid = a.replace("/video/", "")
+    page = html`<${View} cid=${cid}/>`
+  }
+
+  return [
+    html`<${Sidebar} />`,
+    html`<div class="wrapper">
+      <${Header} />
+      ${page}
+    </div>`,
+  ]
+}
+
+export var initialState = {
+    path: globalThis.location.pathname,
+    videos: {},
+    upload: {
+      video_added: false
+    },
+    view: {
+    }
+};
+
+function isMergeableObject(value) {
+    return isNonNullObject(value)
+        && !isSpecial(value)
+}
+
+function isNonNullObject(value) {
+    return !!value && typeof value === 'object'
+}
+
+function isSpecial(value) {
+    var stringValue = Object.prototype.toString.call(value)
+
+    return stringValue === '[object RegExp]'
+        || stringValue === '[object Date]'
+        || stringValue === '[object Uint8Array]'
+        || isReactElement(value)
+}
+
+var canUseSymbol = typeof Symbol === 'function' && Symbol.for
+var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7
+
+function isReactElement(value) {
+    return value.$$typeof === REACT_ELEMENT_TYPE
+}
+
+export let globalState = {};
+export let setGlobalState0 = () => {};
+export let setGlobalState = (new_state) => {
+    var state = globalThis.deepmerge(globalState, new_state, {
+        arrayMerge: (dest, source, opts) => source,
+        isMergeableObject: (obj)=> isMergeableObject(obj)
+    })
+    setGlobalState0(state);
+};
+export let setGlobalStateFull = (new_state) => {
+    setGlobalState0(new_state);
+};
+
+export let mergeObjects = (old_state, new_state) => {
+    var state = globalThis.deepmerge(old_state, new_state, {
+        arrayMerge: (dest, source, opts) => source,
+        isMergeableObject: (obj)=> isMergeableObject(obj)
+    })
+    return state;
+};
+
+export function wireUpGlobalState(hook_globalState, hook_setGlobalState0) {
+    globalState = hook_globalState;
+    setGlobalState0 = hook_setGlobalState0;
+}
+
+export function buildInitialState() {
+    return {
+        ...initialState,
+    };
+};
+
+export function getInitialState() {
+    return initialState;
+};
+
+export function setInitialState(state) {
+    initialState = mergeObjects(initialState, state)
+    return initialState;
+};
+
+export const doNav = async (e, next_page) => {
+    e.preventDefault();
+    if (globalState.path !== next_page) {
+        window.history.pushState(undefined, undefined, next_page);
+        setGlobalState({path: next_page});
+    }
+    return false;
+}
+
+window.onpopstate = function(e) {
+    var next_page = window.location.pathname;
+    setGlobalState({path: next_page});
+}
+
+const MAP = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function to_b58(term) {return (typeof term === 'string' || term instanceof String) ? to_b58_1(new TextEncoder().encode(term)) : to_b58_1(term)}
+function to_b58_1(B,A){if(!A){A=MAP};var d=[],s="",i,j,c,n;for(i in B){j=0,c=B[i];s+=c||s.length^i?"":1;while(j in d||c){n=d[j];n=n?n*256+c:c;c=n/58|0;d[j]=n%58;j++}}while(j--)s+=A[d[j]];return s};
+function from_b58(term) {return from_b58_1(term)}
+function from_b58_1(S,A){if(!A){A=MAP};var d=[],b=[],i,j,c,n;for(i in S){j=0,c=A.indexOf(S[i]);if(c<0)return undefined;c||b.length^i?i:b.push(0);while(j in d||c){n=d[j];n=n?n*58+c:c;c=n>>8;d[j]=n%256;j++}}while(j--)b.push(d[j]);return new Uint8Array(b)};
+
+function generate_random_keypair() {
+    var sign_keypair = nacl.sign.keyPair();
+    const pub_b58 = to_b58(sign_keypair.publicKey)
+    const sec_b58 = to_b58(sign_keypair.secretKey)
+    return [pub_b58, sec_b58]
+}
+
+function init_seckey(force_refresh) {
+  var guest_seckey = localStorage.getItem("privkey:guest");
+  if (!guest_seckey || force_refresh) {
+    var [pub_b58, sec_b58] = generate_random_keypair();
+    localStorage.setItem("privkey:guest", sec_b58);
+    return [pub_b58, sec_b58]
+  } else {
+    var guest_seckey = localStorage.getItem("privkey:guest");
+    var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(guest_seckey))
+    var pub_b58 = to_b58(keyPair_ed.publicKey)
+    var sec_b58 = to_b58(keyPair_ed.secretKey)
+    return [pub_b58, sec_b58]
+  }
+}
+
+async function fetchIPFSHead() {
+  var response = await fetch(`${FARMURL}/head_video_ipfs`, {
+    method: 'POST',
+    body: "",
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
+  var {error, cid} = await response.json()
+  if (error == "ok") {
+    return cid
+  }
+  return undefined
+}
+
+async function load() {
+  var [pub_b58, sec_b58] = init_seckey()
+  var head_cid = await fetchIPFSHead()
+  setInitialState({head_cid: head_cid, pub_b58: pub_b58, sec_b58: sec_b58});
+  ReactDOM.render(html`<${Index}/>`, document.getElementById("app"));
+}
+load()
+
+</script>
+
+</body>
+</html>
