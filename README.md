@@ -1,7 +1,7 @@
 # truth
 Verified Video Platform  
   
-Load from CDN: https://rawcdn.githack.com/zodtv/truth/87400c096f2e5732c68621d7e56cccaab6ea7d24/video-platform/dist/index.html  
+Load from CDN: http://bafybeih5xc3pkn4qii4xjgonlx5pddxeqwb72rakjcv5k63ahzyd2zaakm.ipfs.cf-ipfs.com/
   
 ![image](https://user-images.githubusercontent.com/3028982/158249340-3304f60e-f856-424f-96da-53f1a37dcf56.png)
 

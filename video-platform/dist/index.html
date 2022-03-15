@@ -33,11 +33,29 @@ const FARMURL = "https://135-181-213-135.zod.tv";
 const IPFSURL = "https://5-9-197-250.zod.tv";
 
 function Sidebar() {
+  var [collapse, setCollapse] = useState(globalThis.innerWidth > 1090 ? "" : "collapse")
   var discover_active = globalState.path == "/" ? "is-active" : ""
   discover_active = globalState.path.startsWith("/video") ? "is-active" : discover_active
   var upload_active = globalState.path == "/upload" ? "is-active" : ""
+
+  useEffect(
+    () => {
+      globalThis.addEventListener("resize", function(e) {
+        if (globalThis.innerWidth > 1090) {
+          setCollapse("")
+        } else {
+          setCollapse("collapse")
+        }
+      })
+      return () => {
+        globalThis.removeEventListener("resize")
+      };
+    },
+    []
+  );
+
   return html`
-  <div class="sidebar">
+  <div class="sidebar ${collapse}">
    <span class="logo">S</span>
    <a class="logo-expand" href="#">SIGN</a>
    <div class="side-wrapper">
@@ -161,10 +179,10 @@ function Main({head_cid}) {
 
   const videoEl = Object.values(globalState.videos).map((v,idx)=> {
     var duration_min = Math.ceil((v.metadata.duration / 1000000) / 60)
-    return html`<div class="video anim" style=${{"--delay": `.${idx+1}s`}}>
+    return html`<div key=${v.cid} class="video anim" style=${{"--delay": `.${idx+1}s`}}>
      <div class="video-time">${duration_min} min</div>
      <div class="video-wrapper">
-      <video muted=${true} preload="metadata" onMouseOver=${e=> e.target.play()} onMouseLeave=${e=> e.target.pause()} onClick=${e=> {doNav(undefined, `/video/${v.cid}`)}}>
+      <video key=${`video_${v.cid}`} muted=${true} preload="metadata" onMouseOver=${e=> e.target.play()} onMouseLeave=${e=> e.target.pause()} onClick=${e=> doNav(e, `/video/${v.cid}`)}>
        <source src="${v.preview}" type="video/mp4" />
       </video>
       <div class="author-img__wrapper video-author">
@@ -226,7 +244,7 @@ function Main({head_cid}) {
 }
 
 //UPLOAD_FILE
-async function upload() {
+async function upload(e) {
   var title = globalState.upload.title
   var description = globalState.upload.description
   
@@ -250,7 +268,7 @@ async function upload() {
       alert(error)
       return
     }
-    globalThis.location = `/video/${cid}`
+    doNav(e, `/video/${cid}`)
     setGlobalState({upload: {video_added: false, uploading: false, cid: cid}})
   } catch (err) {
     console.log(err)
@@ -314,7 +332,7 @@ function Upload() {
         </div>
         ${
           video_added ? html`<div class="button-wrapper">
-         <button class="like" onClick=${e=> upload()} disabled=${uploading}>
+         <button class="like" onClick=${e=> upload(e)} disabled=${uploading}>
           ${
             uploading ? html`<i class="fa fa-circle-o-notch fa-spin" style=${{fontSize: "24px"}}></i>` : html`<svg viewBox="0 0 512 512" fill="currentColor">
              <path d="M272 512h-32c-26 0-47.2-21.1-47.2-47.1V454c-11-3.5-21.8-8-32.1-13.3l-7.7 7.7a47.1 47.1 0 01-66.7 0l-22.7-22.7a47.1 47.1 0 010-66.7l7.7-7.7c-5.3-10.3-9.8-21-13.3-32.1H47.1c-26 0-47.1-21.1-47.1-47.1v-32.2c0-26 21.1-47.1 47.1-47.1H58c3.5-11 8-21.8 13.3-32.1l-7.7-7.7a47.1 47.1 0 010-66.7l22.7-22.7a47.1 47.1 0 0166.7 0l7.7 7.7c10.3-5.3 21-9.8 32.1-13.3V47.1c0-26 21.1-47.1 47.1-47.1h32.2c26 0 47.1 21.1 47.1 47.1V58c11 3.5 21.8 8 32.1 13.3l7.7-7.7a47.1 47.1 0 0166.7 0l22.7 22.7a47.1 47.1 0 010 66.7l-7.7 7.7c5.3 10.3 9.8 21 13.3 32.1h10.9c26 0 47.1 21.1 47.1 47.1v32.2c0 26-21.1 47.1-47.1 47.1H454c-3.5 11-8 21.8-13.3 32.1l7.7 7.7a47.1 47.1 0 010 66.7l-22.7 22.7a47.1 47.1 0 01-66.7 0l-7.7-7.7c-10.3 5.3-21 9.8-32.1 13.3v10.9c0 26-21.1 47.1-47.1 47.1zM165.8 409.2a176.8 176.8 0 0045.8 19 15 15 0 0111.3 14.5V465c0 9.4 7.7 17.1 17.1 17.1h32.2c9.4 0 17.1-7.7 17.1-17.1v-22.2a15 15 0 0111.3-14.5c16-4.2 31.5-10.6 45.8-19a15 15 0 0118.2 2.3l15.7 15.7a17.1 17.1 0 0024.2 0l22.8-22.8a17.1 17.1 0 000-24.2l-15.7-15.7a15 15 0 01-2.3-18.2 176.8 176.8 0 0019-45.8 15 15 0 0114.5-11.3H465c9.4 0 17.1-7.7 17.1-17.1v-32.2c0-9.4-7.7-17.1-17.1-17.1h-22.2a15 15 0 01-14.5-11.2c-4.2-16.1-10.6-31.6-19-45.9a15 15 0 012.3-18.2l15.7-15.7a17.1 17.1 0 000-24.2l-22.8-22.8a17.1 17.1 0 00-24.2 0l-15.7 15.7a15 15 0 01-18.2 2.3 176.8 176.8 0 00-45.8-19 15 15 0 01-11.3-14.5V47c0-9.4-7.7-17.1-17.1-17.1h-32.2c-9.4 0-17.1 7.7-17.1 17.1v22.2a15 15 0 01-11.3 14.5c-16 4.2-31.5 10.6-45.8 19a15 15 0 01-18.2-2.3l-15.7-15.7a17.1 17.1 0 00-24.2 0l-22.8 22.8a17.1 17.1 0 000 24.2l15.7 15.7a15 15 0 012.3 18.2 176.8 176.8 0 00-19 45.8 15 15 0 01-14.5 11.3H47c-9.4 0-17.1 7.7-17.1 17.1v32.2c0 9.4 7.7 17.1 17.1 17.1h22.2a15 15 0 0114.5 11.3c4.2 16 10.6 31.5 19 45.8a15 15 0 01-2.3 18.2l-15.7 15.7a17.1 17.1 0 000 24.2l22.8 22.8a17.1 17.1 0 0024.2 0l15.7-15.7a15 15 0 0118.2-2.3z"></path>
@@ -377,7 +395,7 @@ async function IPFSView(cid) {
   }
 }
 
-async function sign(cid) {
+async function sign(cid, e) {
   //var seckey = prompt("Enter your ed25519 private key")
   //if (seckey) {
     setGlobalState({signing: true})
@@ -401,8 +419,7 @@ async function sign(cid) {
 
       var {error, cid} = await response.json();
       if (error == "ok") {
-        //window.location = `/video/${cid}`
-        doNav(undefined, `/video/${cid}`)
+        doNav(e, `/video/${cid}`)
         setGlobalState({signing: false, head_cid: cid})
         return cid
       } else {
@@ -478,7 +495,7 @@ function View({cid}) {
           </svg>
           View on IPFS
          </button>
-         <button style=${{display: show_make_public}} class="like red" onClick=${e=> sign(cid)} disabled=${signing}>
+         <button style=${{display: show_make_public}} class="like red" onClick=${e=> sign(cid, e)} disabled=${signing}>
           ${
             signing ? html`<i class="fa fa-circle-o-notch fa-spin" style=${{fontSize: "24px"}}></i>` : html`<svg viewBox="0 0 512 512" fill="currentColor">
              <path d="M499.377 46.402c-8.014-8.006-18.662-12.485-29.985-12.613a41.13 41.13 0 00-.496-.003c-11.142 0-21.698 4.229-29.771 11.945L198.872 275.458c25.716 6.555 47.683 23.057 62.044 47.196a113.544 113.544 0 0110.453 23.179L500.06 106.661C507.759 98.604 512 88.031 512 76.89c0-11.507-4.478-22.33-12.623-30.488zM176.588 302.344a86.035 86.035 0 00-3.626-.076c-20.273 0-40.381 7.05-56.784 18.851-19.772 14.225-27.656 34.656-42.174 53.27C55.8 397.728 27.795 409.14 0 416.923c16.187 42.781 76.32 60.297 115.752 61.24 1.416.034 2.839.051 4.273.051 44.646 0 97.233-16.594 118.755-60.522 23.628-48.224-5.496-112.975-62.192-115.348z"></path>
@@ -610,7 +627,7 @@ function Index() {
 }
 
 export var initialState = {
-    path: globalThis.location.pathname,
+    path:  globalThis.location.hash == "" ? "/" : globalThis.location.hash.replace("#", ""),
     videos: {},
     upload: {
       video_added: false
@@ -690,14 +707,18 @@ export const doNav = async (e, next_page) => {
       e.preventDefault();
     }
     if (globalState.path !== next_page) {
-        window.history.pushState(undefined, undefined, next_page);
-        setGlobalState({path: next_page});
+      if (next_page == "/") {
+        globalThis.history.pushState(undefined, undefined, `/`);
+      } else {
+        globalThis.history.pushState(undefined, undefined, `/#${next_page}`);
+      }
+      setGlobalState({path: next_page});
     }
     return false;
 }
 
-window.onpopstate = function(e) {
-    var next_page = window.location.pathname;
+globalThis.onpopstate = function(e) {
+    var next_page = globalThis.location.pathname;
     setGlobalState({path: next_page});
 }
 
