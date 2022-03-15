@@ -103,21 +103,34 @@ function Sidebar() {
 `
 }
 
+async function connect_solana() {
+  try {
+    const resp = await window.solana.connect();
+    const pubkey = resp.publicKey.toString()
+    setGlobalState({key_type: "solana", pub_b58: pubkey})
+  } catch (err) {
+    console.log(err)
+  }
+}
+
 function Header() {
+  const hasPhantom = (globalThis.solana && globalThis.solana.isPhantom) ? "" : "none"
   return html`
   <div class="header">
    <div class="search-bar">
     <input type="text" placeholder="Search"></input>
    </div>
    <div class="user-settings">
-    <img  class="user-img" src="https://images.unsplash.com/photo-1587918842454-870dbd18261a?ixlib=rb-1.2.1&ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&auto=format&fit=crop&w=943&q=80" alt=""></img>
+    <img  class="user-img" style=${{display: "none"}} src="https://images.unsplash.com/photo-1587918842454-870dbd18261a?ixlib=rb-1.2.1&ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&auto=format&fit=crop&w=943&q=80" alt=""></img>
     <div class="user-name" >${globalState.pub_b58}</div>
-    <svg viewBox="0 0 492 492" fill="currentColor"  style=${{display: "none"}}>
+    <svg style=${{display: "none"}} viewBox="0 0 492 492" fill="currentColor">
      <path d="M484.13 124.99l-16.11-16.23a26.72 26.72 0 00-19.04-7.86c-7.2 0-13.96 2.79-19.03 7.86L246.1 292.6 62.06 108.55c-5.07-5.06-11.82-7.85-19.03-7.85s-13.97 2.79-19.04 7.85L7.87 124.68a26.94 26.94 0 000 38.06l219.14 219.93c5.06 5.06 11.81 8.63 19.08 8.63h.09c7.2 0 13.96-3.57 19.02-8.63l218.93-219.33A27.18 27.18 0 00492 144.1c0-7.2-2.8-14.06-7.87-19.12z"></path>
     </svg>
+
     <div class="notify">
      <div class="notification" style=${{display: "none"}}></div>
-     <svg viewBox="0 0 24 24" fill="currentColor">
+     <img onClick=${e=> connect_solana()} src="https://cdn-icons-png.flaticon.com/512/6001/6001527.png" style=${{display: hasPhantom, width: "24px", marginLeft: "24px"}}></img>
+     <svg viewBox="0 0 24 24" fill="currentColor" style=${{display: "none"}}>
       <path fill-rule="evenodd" clip-rule="evenodd" d="M18.707 8.796c0 1.256.332 1.997 1.063 2.85.553.628.73 1.435.73 2.31 0 .874-.287 1.704-.863 2.378a4.537 4.537 0 01-2.9 1.413c-1.571.134-3.143.247-4.736.247-1.595 0-3.166-.068-4.737-.247a4.532 4.532 0 01-2.9-1.413 3.616 3.616 0 01-.864-2.378c0-.875.178-1.682.73-2.31.754-.854 1.064-1.594 1.064-2.85V8.37c0-1.682.42-2.781 1.283-3.858C7.861 2.942 9.919 2 11.956 2h.09c2.08 0 4.204.987 5.466 2.625.82 1.054 1.195 2.108 1.195 3.745v.426zM9.074 20.061c0-.504.462-.734.89-.833.5-.106 3.545-.106 4.045 0 .428.099.89.33.89.833-.025.48-.306.904-.695 1.174a3.635 3.635 0 01-1.713.731 3.795 3.795 0 01-1.008 0 3.618 3.618 0 01-1.714-.732c-.39-.269-.67-.694-.695-1.173z" />
      </svg>
     </div>
@@ -401,13 +414,29 @@ async function sign(cid, e) {
     setGlobalState({signing: true})
 
     try {
-      var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(globalState.sec_b58))
+      var pubkey_b58, signature_b58;
+      if (globalState.key_type == "solana" ) {
+        pubkey_b58 = globalState.pub_b58;
 
-      var pubkey_b58 = to_b58(keyPair_ed.publicKey)
+        const encodedMessage = new TextEncoder().encode(cid);
+        const signedMessage = await globalThis.solana.signMessage(encodedMessage, "utf8");
+        //var verified = nacl.sign.detached.verify(encodedMessage, signedMessage.signature, signedMessage.publicKey.toBytes());
 
-      var message = (new TextEncoder()).encode(cid)
-      var signature = nacl.sign.detached(message, keyPair_ed.secretKey)
-      var signature_b58 = to_b58(signature)
+        var sig_wtf = new Uint8Array(64);
+        for (var x = 0; x < 64; x++) {
+          sig_wtf[x] = signedMessage.signature[x]
+        }
+        signature_b58 = to_b58(sig_wtf)
+
+      } else {
+        var keyPair_ed = nacl.sign.keyPair.fromSecretKey(from_b58(globalState.sec_b58))
+
+        pubkey_b58 = to_b58(keyPair_ed.publicKey)
+
+        var message = (new TextEncoder()).encode(cid)
+        var signature = nacl.sign.detached(message, keyPair_ed.secretKey)
+        signature_b58 = to_b58(signature)
+      }
 
       var response = await fetch(`${FARMURL}/sign_video_ipfs`, {
         method: 'POST',
@@ -416,7 +445,6 @@ async function sign(cid, e) {
           'Accept': 'application/json',
         }
       })
-
       var {error, cid} = await response.json();
       if (error == "ok") {
         doNav(e, `/video/${cid}`)
