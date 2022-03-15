@@ -1,8 +1,9 @@
 # truth
 Verified Video Platform  
   
-Load from CDN: http://bafybeih5xc3pkn4qii4xjgonlx5pddxeqwb72rakjcv5k63ahzyd2zaakm.ipfs.cf-ipfs.com/
-  
+Load from IPFS: https://bafybeiar6m3hchxetu25n34ighzunq3f275vg3xk2wefhejzss7kz6gt4u.ipfs.cf-ipfs.com/  
+Load from GITRAW: https://rawcdn.githack.com/zodtv/truth/eb0ea2ab10c8c2d5a9fec46dcbdd39ac1e0068e7/video-platform/dist/index.html  
+
 ![image](https://user-images.githubusercontent.com/3028982/158249340-3304f60e-f856-424f-96da-53f1a37dcf56.png)
 
 ## How it works
